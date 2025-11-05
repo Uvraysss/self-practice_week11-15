@@ -1,0 +1,288 @@
+self-practice week 11
+inclass
+
+// Synchronous programming
+console.log("starting...")
+console.log("working...")
+console.log("ending...")
+
+คำอธิบาย ตัวอย่างของ Synchronous programming คือ โปรแกรมจะรันทีละคำสั่ง ถ้าคำสั่งแรกยังทำงานไม่เสร็จ ก็ไม่สามารถทำงานคำสั่งถัดไปได้ จากตัวอย่าง 
+console.log("starting...") console.log("working...") console.log("ending...") จะได้ผลลัพธ์เป็น 
+starting...
+working...
+ending... 
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+// Asynchronous programming
+console.log("starting...")
+setTimeout(() => console.log("working#2..."), 5000)
+console.log("ending...")
+
+คำอธิบาย ตัวอย่างของ Asynchronous programming คือ โปรแกรมจะรันทีละคำสั่ง แต่ถ้าคำสั่งไหนต้องใช้เวลา หรือ ยังทำงานไม่เสร็จ ก็จะข้ามไปทำคำสั่งถัดไปก่อน เมื่อคำสั่ง
+ก่อนหน้าดำเนินการเสร็จแล้วก็จะแสดง output ออกมาทีหลัง จากตัวอย่าง console.log("starting...") setTimeout(() => console.log("working#2..."), 5000)
+console.log("ending...") เนื่องจากฟังก์ชัน setTimeout มีการตั้ง timer 5000ms คือการรอ 5 วินาที แล้วค่อยแสดงผลลัพธ์ ซึ่งจะได้ output เป็น
+starting...
+ending...
+working#2...
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+//ตัวอย่างการไม่จัดการกับ promise ที่จะสร้างปัญหาให้กับโปรแกรม
+function doSomething(hasResource) {
+    return new Promise((resolve, reject) => {
+    setTimeout(() => (hasResource ? resolve("done") : reject("fail")), 5000)
+  })
+}
+
+คำอธิบาย Promise คือ object ที่ใช้เก็บสถานะของงาน เช่น การโหลดข้อมูลจาก server, การอ่านไฟล์, หรือการรอผลบางอย่าง และจะส่งผลลัพธ์กลับมาในอนาคต 
+เป็นการให้ค่าผลลัพธ์ (resolve) หรือ บอกข้อผิดพลาด (reject) เมื่อทำเสร็จ
+new Promise((resolve, reject) => { ... }) คือ การสร้าง Promise ใหม่ ซึ่งภายใน executor function มี logic ที่จะเรียก resolve(value) เมื่อสำเร็จ 
+หรือ reject(reason) เมื่อเกิด error ภายใน executor ใช้ setTimeout(..., 5000) เลือกส่ง resolve("done") หรือ reject("fail") หลัง 5 วินาที ตามค่า 
+hasResource 
+ตอนสร้าง: Promise { <pending> }
+หลัง 5 วินาที:
+ถ้า hasResource === true สถานะไปเป็น fulfilled และ value = "done"
+ถ้า hasResource === false สถานะไปเป็น rejected และ reason = "fail"
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+/*// no handle prommise
+console.log("starting...")
+const workStatus = doSomething(false)
+console.log(workStatus)
+console.log("ending...")
+//starting...
+// Promise { <pending> }
+// ending...
+//fail, throw exception*/
+
+คำอธิบาย ตัวอย่างของการไม่ handle Promise โปรแกรมจะรัน starting... จากนั้น doSomething(false) ถูกเรียก เป็นการคืนค่า Promise (pending) ทันทีเพราะยัง
+ต้องรอ 5 วินาที console.log(workStatus) พิมพ์ Promise { <pending> } (เป็น object) สุดท้าย console.log("ending...") พิมพ์ ending...
+หลัง 5 วินาที Promise ถูก reject("fail") ถ้าไม่มี .catch() หรือ try/catch กับ await จะเป็น unhandled rejection ซึ่ง runtime อาจโยน exception ขึ้น 
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+/*/ handle prommise - 2 ways (1) .then().catch(), (2.) async-await()
+//1 .then().catch()
+console.log("starting...")
+
+// กรณี true
+doSomething(true).then((result) => {
+    console.log("working...")
+    console.log(`work status= ${result}`)
+    console.log("ending...")
+}).catch((error) => {
+    console.log(error)
+})
+
+คำอธิบาย เป็นตัวอย่างของการมี handle prommise ประเภท .then().catch() เริ่มจากการเรียก doSomething(true) คือการคืน Promise pending
+เมื่อ Promise resolve("done") (หลัง 5 วินาที) runtime จะเรียก callback ใน .then(...) callback ใน .then จะได้ output เป็น 
+working..., work status= done, ending...
+
+// กรณี false
+doSomething(false).then((result) => {
+    console.log("working...")
+    console.log(`work status= ${result}`)
+    console.log("ending...")
+}).catch((error) => {
+    console.log(error)
+})*/
+
+คำอธิบาย เป็นตัวอย่างของการมี handle prommise ประเภท .then().catch() เริ่มจากการเรียก doSomething(false) คือการคืน Promise pending
+เมื่อ Promise reject("fail") จะไปที่ .catch(...) เพื่อจัดการผลลัพธ์หรือแสดง error ตามที่กำหนดไว้
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+//2. async-await()
+// เมื่อไรใช้ await ต้องสร้างฟังก์ชันและกำหนด async เพราะ await ไม่สามารถอยู่ลอย ๆ ได้
+async function working2() {
+    console.log("starting...")
+    try {
+        const workStatus = await doSomething(true)
+        console.log(workStatus)
+        console.log("ending...")
+    } catch (error) {
+        console.log(error)
+    }
+}
+working2()
+
+คำอธิบาย เป็นตัวอย่างของการมี handle prommise ประเภท async-await() เริ่มจาก working2() ถูกเรียก โดยสถานะเป็น async function จะเริ่มทำงาน
+console.log("starting...") พิมพ์ starting... ทันที จากนั้น await doSomething(true) ฟังก์ชัน หยุดชั่วคราว ที่จุดนี้ จนกว่า Promise จะ resolve หรือ 
+reject หลัง 5 วินาที Promise resolve("done") workStatus = "done"
+console.log(workStatus) พิมพ์ done สุดท้าย console.log("ending...") พิมพ์ ending...
+
+async function working2() {
+    console.log("starting...")
+    try {
+        const workStatus = await doSomething(false)
+        console.log(workStatus)
+        console.log("ending...")
+    } catch (error) {
+        console.log(error)
+    }
+}
+working2()
+
+คำอธิบาย เป็นตัวอย่างของการมี handle prommise ประเภท async-await() เริ่มจาก working2() ถูกเรียก โดยสถานะเป็น async function จะเริ่มทำงาน
+console.log("starting...") พิมพ์ starting... ทันที จากนั้น await doSomething(false) ฟังก์ชัน หยุดชั่วคราว ที่จุดนี้ จนกว่า Promise จะ reject 
+หลัง 5 วินาที จะได้ output เป็น
+starting...
+fail 
+เนื่องจาก hasResource = false จะเข้า catch
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+พื้นฐาน fetch() ใน JavaScript
+1. fetch() คือ ฟังก์ชันมาตรฐานของ JavaScript (อยู่ใน browser และ Node.js เวอร์ชันใหม่ ๆ) ใช้สำหรับ ติดต่อกับ backend หรือ API เช่น REST API เพื่อ 
+ดึง (GET) หรือ ส่ง (POST, PUT, DELETE) ข้อมูลผ่าน HTTP
+
+2. รูปแบบพื้นฐาน (Basic Syntax)
+fetch(url, options)
+  .then(response => response.json())  // แปลง response เป็น JSON object
+  .then(data => console.log(data))
+  .catch(error => console.error(error))
+
+url คือ URL ของ API เช่น "https://api.example.com/users"
+options คือการกำหนด method, headers, body ฯลฯ (optional)
+fetch() จะคืนค่าเป็น Promise
+
+3. ตัวอย่าง: GET request (ดึงข้อมูล)
+fetch("https://jsonplaceholder.typicode.com/users")
+  .then(response => {
+    if (!response.ok) throw new Error("Network error!");
+    return response.json();   // แปลงจาก JSON text เป็น JS object
+  })
+  .then(users => {
+    console.log("User list:", users);
+  })
+  .catch(err => console.error("Error:", err));
+
+อธิบายทีละขั้น fetch() ส่งคำขอไปยัง URL ได้ response กลับมา ทำการตรวจสอบ response.ok แล้วแปลง response body เป็น JSON
+
+4. ใช้กับ async / await
+async function loadUsers() {
+  try {
+    const response = await fetch("https://jsonplaceholder.typicode.com/users");
+    if (!response.ok) throw new Error("Fetch failed!");
+    const users = await response.json();
+    console.log(users);
+  } catch (err) {
+    console.error("Error:", err);
+  }
+}
+loadUsers();
+
+5. การส่งข้อมูล (POST request) ใช้ส่งข้อมูลไป backend เช่น login หรือบันทึกข้อมูล
+async function createUser() {
+  const newUser = {
+    name: "Alice",
+    email: "alice@example.com",
+  };
+
+  try {
+    const response = await fetch("https://jsonplaceholder.typicode.com/users", {
+      method: "POST",                     // ใช้ POST
+      headers: { "Content-Type": "application/json" }, // ระบุว่าข้อมูลเป็น JSON
+      body: JSON.stringify(newUser),      // แปลง object เป็น JSON string
+    });
+
+    const result = await response.json();
+    console.log("User created:", result);
+  } catch (err) {
+    console.error("Error:", err);
+  }
+}
+createUser();
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+self-practice
+
+Exercise 1 — Predict the Output (Basic)
+    console.log('A');
+    setTimeout(() => console.log('B'), 0);
+    Promise.resolve().then(() => console.log('C'));
+    console.log('D');
+Question:
+What will be printed in the console, and why?
+
+Ans : 
+A
+D
+C
+B
+
+คำอธิบาย เมื่อ console.log('A'); ปรกติ A จะพิมพ์ทันที ต่อมา setTimeout(..., 0) เข้า task queue ต่อมา Promise.resolve().then(...) จะรันหลังจาก call 
+stack ว่าง D พิมพ์ก่อนเพราะ synchronous หลังจาก stack ว่าง จะรันที่เหลือทั้งหมด คือ C แล้วรัน B ต่อไปเป็นอันดับสุดท้าย 
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+/*Exercise 2 — Convert .then() Chain to async/await
+    doSomething(true)
+    .then(res => {
+        console.log('res =', res);
+        return doSomething(true);
+    })
+    .then(res2 => {
+        console.log('res2 =', res2);
+    })
+    .catch(err => console.log(err));
+    
+Question:
+Rewrite this code using async/await syntax to achieve the same result. */
+
+async function run() {
+    try {
+    const res = await doSomething(true)
+    console.log('res =', res)
+    const res2 = await doSomething(true)
+    console.log('res2 =', res2)
+  } catch (err) {
+    console.log(err);
+  }
+}
+run()
+
+คำอธิบาย ฟังก์ชัน run() เป็นฟังก์ชันที่ประกาศด้วย async หมายความว่า ภายในสามารถใช้คำสั่ง await ได้ const res = await doSomething(true) เมื่อ doSomething(true) 
+จะเริ่มทำงานและส่ง Promise กลับมา await จะหยุดรอ จนกว่า Promise นั้นจะเสร็จ ผ่านไป 5 วินาที Promise ถูก resolve("done") ค่าที่ return (“done”) จะถูกเก็บในตัวแปร res
+แล้วจึงรันบรรทัดต่อไป ผลลัพธ์ตอนนี้ คือ res = done ต่อมา const res2 = await doSomething(true) เริ่มใหม่อีกครั้ง สั่ง doSomething(true) อีก 5 วินาทีถัดมา 
+จะได้ผลลัพธ์ "done" อีกครั้ง จากนั้นพิมพ์ผลลัพธ์ต่อมา คือ res2 = done ส่วน catch (err) { ... } ใช้สำหรับดักข้อผิดพลาด (error) ที่อาจเกิดขึ้นจาก doSomething(false)
+ถ้า reject() ถูกเรียก จะกระโดดมาที่ catch ทันที และ คำสั่งหลังจากบรรทัดที่เกิด error จะไม่ทำงานต่อ
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+/*Exercise 3 — Run Promises Sequentially in a Loop
+Question:
+    Given:
+    function task(n) {
+    return new Promise(resolve => setTimeout(() => resolve(n), n * 500));
+    }
+    const tasks = [1, 2, 3];
+Run each task sequentially (one after another) and collect all results into an array. */
+
+function task(n) {
+  return new Promise((resolve) => setTimeout(() => resolve(n), n * 500))
+}
+
+async function runSequential(tasks) {
+  const results = []
+  for (const t of tasks) {
+    const r = await task(t)  
+    results.push(r)
+  }
+  return results
+}
+runSequential([1,2,3]).then(res => console.log(res))
+
+คำอธิบาย ฟังก์ชัน task(n) ฟังก์ชันนี้ คืนค่าเป็น Promise ภายในใช้ setTimeout() เพื่อจำลองการทำงานที่ใช้เวลา เวลาในการรอ = n * 500  เมื่อครบเวลาจะ resolve(n) 
+ส่งค่ากลับออกไป ตัวอย่างเช่น task(2).then(res => console.log(res)) หลัง 1 วินาที จะได้ค่า 2
+
+ฟังก์ชัน runSequential(tasks) เป็นฟังก์ชันแบบ async เพื่อให้ใช้ await ได้ รับพารามิเตอร์ tasks เป็น array เช่น [1,2,3] สร้าง array results ไว้เก็บค่าที่ได้จาก
+แต่ละงาน จากนั้นมีการวนลูป for (const t of tasks) โค้ดจะวนแต่ละค่าใน array คือ t = 1, แล้ว t = 2, แล้ว t = 3 ในแต่ละรอบ จะเรียก await task(t) หยุดรอให้ 
+Promise เสร็จ เมื่อ Promise resolve(n) ได้ค่า r เอา r ไปใส่ใน results สุดท้าย runSequential([1,2,3]).then(res => console.log(res)) เป็นการเรียกใช้ 
+runSequential() โดยส่ง [1,2,3] ฟังก์ชันนี้ return เป็น Promise (เพราะเป็น async) ใช้ .then() เพื่อรอรับผลลัพธ์สุดท้ายและพิมพ์ออกมา ซึ่งผลรวมทั้งหมดใช้เวลาประมาณ 
+3 วินาที (500 + 1000 + 1500) เพราะรันทีละงานแบบเรียงลำดับ ไม่ได้ทำพร้อมกัน จะได้ output [1, 2, 3] หลังจากประมาณ 3 วินาที
+
+--------------------------------------------------------------------------------------------------------------------------------------
