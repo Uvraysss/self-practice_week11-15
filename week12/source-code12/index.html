@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Plan</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav>
+      <div class="logo">
+        <img src="./image/SIT-LOGO-White.png" alt="SIT Logo" />
+      </div>
+      <ul>
+        <li><a href="#">Home</a></li>
+        <li><a href="#">Study Plan</a></li>
+        <li><a href="#">Reserve Course</a></li>
+      </ul>
+    </nav>
+
+    <h1>B.Sc.IT - Study Plans</h1>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Study Code</th>
+            <th>English Name</th>
+            <th>Thai Name</th>
+          </tr>
+        </thead>
+        <tbody id="PlansTableBody">
+          <!-- JS เติมข้อมูล -->
+        </tbody>
+      </table>
+    </div>
+
+    <button id="manageBtn" class="ecors-button-manage">
+      Manage study plan declaration and course reservation
+    </button>
+
+    <footer>
+      <p>© 2025 School of Information Technology, KMUTT</p>
+    </footer>
+
+    <script>
+      document.getElementById("manageBtn").addEventListener("click", () => {
+        window.location.href = "./keycloak.html";
+      });
+
+      // base URL ของ backend
+      const baseUrl = ["localhost", "127.0.0.1"].includes(
+        window.location.hostname
+      )
+        ? "http://localhost:3000"
+        : "http://bscit.sit.kmutt.ac.th/intproj25/kp2/itb-ecors";
+
+      async function fetchStudyPlans() {
+        try {
+          const tableBody = document.getElementById("PlansTableBody");
+          const response = await fetch(`${baseUrl}/api/study-plans`);
+
+          if (!response.ok)
+            throw new Error(`HTTP error! status: ${response.status}`);
+
+          const data = await response.json();
+          tableBody.innerHTML = "";
+
+          if (!data || data.length === 0) {
+            tableBody.innerHTML = `
+          <tr><td colspan="4" style="text-align:center; padding:10px;">No data found</td></tr>
+        `;
+            console.log("✅ Fetched study plans: []");
+            return;
+          }
+
+          data.forEach((plan) => {
+            const row = document.createElement("tr");
+            row.classList.add("ecors-row");
+            row.innerHTML = `
+          <td class="ecors-id">${plan.id}</td>
+          <td class="ecors-studyCode">${plan.planCode}</td>
+          <td class="ecors-nameEng">${plan.nameEng}</td>
+          <td class="ecors-nameTh">${plan.nameTh}</td>
+        `;
+            tableBody.appendChild(row);
+          });
+
+          console.log("✅ Fetched study plans:", data);
+        } catch (error) {
+          console.error("❌ Fetch error:", error);
+          ErrorPopup("There is a problem. Please try again.");
+        }
+      }
+
+      // ฟังก์ชันแสดง ErrorPopup
+      function ErrorPopup(message) {
+        const dialog = document.createElement("dialog");
+        dialog.className = "ecors-error-popup";
+        dialog.innerHTML = `<p>${message}</p>`;
+        document.body.appendChild(dialog);
+        dialog.showModal();
+      }
+
+      window.onload = fetchStudyPlans;
+    </script>
+  </body>
+</html>

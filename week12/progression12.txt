@@ -1,0 +1,411 @@
+self-practice week 12
+inclass
+
+Index.html
+
+      document.getElementById("manageBtn").addEventListener("click", () => {
+        window.location.href = "./keycloak.html";
+      });
+      
+      คำอธิบาย เลือก element ที่มี id="manageBtn" ซึ่งก็คือปุ่ม "Manage study plan declaration and course reservation" จากนั้นใช้ 
+      addEventListener เพื่อรอรับ event click (เมื่อคลิกปุ่ม) เมื่อคลิกปุ่มจะใช้ arrow function ให้เปลี่ยนหน้าเว็บไปที่ "./keycloak.html" 
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+      // base URL ของ backend
+      const baseUrl = ["localhost", "127.0.0.1"].includes(
+        window.location.hostname
+      )
+        ? "http://localhost:3000"
+        : "http://bscit.sit.kmutt.ac.th/intproj25/kp2/itb-ecors";
+
+        คำอธิบาย กำหนดตัวแปร baseUrl เพื่อเก็บ URL ของ backend API ใช้ window.location.hostname เพื่อเช็คว่า hostname ของเว็บเพจตอนนี้คืออะไร
+        ถ้า hostname เป็น "localhost" หรือ "127.0.0.1" (เช็คว่าเราเปิดเว็บจากเครื่อง local) ให้ตั้ง baseUrl เป็น "http://localhost:3000" 
+        (backend อยู่ที่เครื่อง local port 3000) ถ้าไม่ใช่ เช่น เปิดจากเซิร์ฟเวอร์จริง ตั้ง baseUrl เป็น "http://bscit.sit.kmutt.ac.th/intproj25/kp2/itb-ecors" 
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+      async function fetchStudyPlans() {
+        try {
+          const tableBody = document.getElementById("PlansTableBody");
+          const response = await fetch(`${baseUrl}/api/study-plans`);
+
+          if (!response.ok)
+            throw new Error(`HTTP error! status: ${response.status}`);
+
+          const data = await response.json();
+          tableBody.innerHTML = "";
+
+          if (!data || data.length === 0) {
+            tableBody.innerHTML = `
+          <tr><td colspan="4" style="text-align:center; padding:10px;">No data found</td></tr>
+        `;
+            console.log("✅ Fetched study plans: []");
+            return;
+          }
+
+          data.forEach((plan) => {
+            const row = document.createElement("tr");
+            row.classList.add("ecors-row");
+            row.innerHTML = `
+          <td class="ecors-id">${plan.id}</td>
+          <td class="ecors-studyCode">${plan.planCode}</td>
+          <td class="ecors-nameEng">${plan.nameEng}</td>
+          <td class="ecors-nameTh">${plan.nameTh}</td>
+        `;
+            tableBody.appendChild(row);
+          });
+
+          console.log("✅ Fetched study plans:", data);
+        } catch (error) {
+          console.error("❌ Fetch error:", error);
+          ErrorPopup("There is a problem. Please try again.");
+        }
+      }
+
+      คำอธิบาย ประกาศฟังก์ชัน fetchStudyPlans แบบ async เพื่อให้ใช้ await รอผลลัพธ์แบบ asynchronous ได้ try { ... } catch(error) { ... } 
+      คือบล็อกเพื่อจับข้อผิดพลาดเวลา fetch API ต่อมา const tableBody = document.getElementById("PlansTableBody"); หาตำแหน่ง <tbody> 
+      ของตาราง เพื่อเตรียมใส่ข้อมูลในตาราง const response = await fetch(${baseUrl}/api/study-plans); ใช้คำสั่ง fetch เพื่อดึงข้อมูล study plans 
+      จาก API ที่ URL baseUrl/api/study-plans await รอให้การ fetch เสร็จสมบูรณ์ก่อนทำขั้นตอนถัดไป
+      if (!response.ok) throw new Error(...) เช็คว่าการตอบกลับ HTTP status code ไม่ใช่ 200-299 (เช่น 404, 500) ถ้าไม่สำเร็จ ให้โยน error 
+      เพื่อเข้า catch block const data = await response.json(); เป็นการแปลงข้อมูลที่ได้จาก fetch (JSON) เป็น JavaScript object/array
+      tableBody.innerHTML = ""; คือการล้างข้อมูลใน <tbody> ก่อนเติมข้อมูลใหม่ 
+      if (!data || data.length === 0) { ... } เช็คว่ามีข้อมูลไหม ถ้าไม่มีข้อมูลให้เป็น null, undefined หรือ array ว่าง ให้เติมแถว <tr> ที่บอกว่า 
+      "No data found" (ไม่มีข้อมูล) ลงในตาราง และ log ข้อความแจ้งว่าดึงข้อมูลได้ว่างเปล่า จากนั้น return ออกจากฟังก์ชัน data.forEach((plan) => { ... });
+      ถ้ามีข้อมูลให้วนลูปข้อมูลแต่ละ plan สร้าง <tr> ใหม่ด้วย document.createElement("tr") เพิ่ม class "ecors-row" ให้กับแถวนี้ เติมข้อมูลในแถวด้วย 
+      innerHTML โดยดึงค่า id, planCode, nameEng, nameTh ของแต่ละ plan มาแสดงใน <td> ใส่แถวนี้เข้าไปใน <tbody> ของตาราง 
+      console.log("✅ Fetched study plans:", data); แสดงข้อมูล study plans ที่ดึงมาได้ใน console เพื่อดีบัก catch (error) { ... }
+      ถ้ามีข้อผิดพลาดใน try (เช่น fetch ล้มเหลว) ให้แสดง error ใน console เรียกฟังก์ชัน ErrorPopup เพื่อแจ้งผู้ใช้ว่ามีปัญหา
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+      // ฟังก์ชันแสดง ErrorPopup
+      function ErrorPopup(message) {
+        const dialog = document.createElement("dialog");
+        dialog.className = "ecors-error-popup";
+        dialog.innerHTML = `<p>${message}</p>`;
+        document.body.appendChild(dialog);
+        dialog.showModal();
+      }
+
+      window.onload = fetchStudyPlans;
+
+      คำอธิบาย สร้างฟังก์ชันชื่อ ErrorPopup ที่รับพารามิเตอร์ message หรือข้อความแจ้งเตือน และ สร้าง element <dialog> ใหม่ (ใช้สำหรับกล่อง popup)
+      ตั้ง class ชื่อ "ecors-error-popup" ให้ <dialog> ใส่ข้อความ <p>${message}</p> ลงใน dialog และเพิ่ม dialog นี้เข้าไปใน <body> สั่งให้ 
+      dialog แสดงแบบ modal (กล่อง popup ไม่สามารถปิดได้)
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+keycloak.html 
+
+    const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+    คำอธิบาย ประกาศตัวแปร isLocal เพื่อเก็บสถานะว่าเว็บนี้กำลังรันบนเครื่อง local หรือไม่ ใช้ window.location.hostname เพื่อดูชื่อ host ของเว็บเพจตอนนี้
+    เช็คว่า hostname เป็น "localhost" หรือ "127.0.0.1" หรือไม่ ถ้าใช่ isLocal จะเป็น true (แสดงว่าเปิดเว็บจากเครื่องเราเอง) ถ้าไม่ใช่ จะเป็น false 
+    (แสดงว่าเปิดจาก server จริง)
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+    const KC = isLocal
+        ? {
+            url: "http://localhost:8180",
+            realm: "itb-ecors",
+            clientId: "itb-ecors-kp2",
+            redirectUri: new URL("./reserve.html", location.href).href
+        }
+        : {
+            url: "https://bscit.sit.kmutt.ac.th/intproj25/ft/keycloak/",
+            realm: "itb-ecors",
+            clientId: "itb-ecors-kp2",
+            redirectUri: new URL("./reserve.html", location.href).href
+        };
+
+    คำอธิบาย ประกาศตัวแปร KC ซึ่งเป็น object config สำหรับ Keycloak Client ใช้ ternary operator (? :) เพื่อเลือกค่าตามว่า isLocal เป็น true หรือ false
+    ถ้า isLocal เป็น true (รัน local) url: กำหนดเป็น "http://localhost:8180" — URL ของ Keycloak Server บนเครื่อง local 
+    realm: กำหนดเป็น "itb-ecors" — Realm ของ Keycloak (กลุ่มผู้ใช้/โดเมนที่ใช้จัดการ) clientId: กำหนดเป็น "itb-ecors-kp2" — ชื่อ Client ที่สร้างใน Keycloak
+    redirectUri: ใช้ new URL("./reserve.html", location.href).href เพื่อสร้าง URL ปลายทางหลังล็อกอินเสร็จ คือหน้า reserve.html ใน path เดียวกับไฟล์นี้
+    ถ้า isLocal เป็น false (รันบน server จริง) url: กำหนดเป็น "https://bscit.sit.kmutt.ac.th/intproj25/ft/keycloak/" — URL ของ Keycloak Server จริง 
+    (เซิร์ฟเวอร์ของมหาวิทยาลัย) ค่าอื่น ๆ (realm, clientId, redirectUri) เหมือนกัน
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+    const keycloak = new Keycloak(KC);
+
+    keycloak.init({ onLoad: "login-required", checkLoginIframe: false })
+        .then(() => {
+        sessionStorage.setItem("kcToken", keycloak.token);
+        sessionStorage.setItem("kcRefreshToken", keycloak.refreshToken);
+        window.location.href = "./reserve.html";
+        })
+        .catch(err => {
+        console.error("Keycloak init error:", err);
+        alert("Login failed. Please try again or contact admin.");
+        });
+
+    คำอธิบาย สร้าง ตัวแปร keycloak เป็น instance ของ Keycloak client เรียก constructor ของ Keycloak ส่ง config object KC ที่เตรียมไว้เข้าไป 
+    เพื่อให้ Keycloak รู้ว่าจะเชื่อมกับ server ไหน realm ไหน และ client ไหน เรียกฟังก์ชัน init ของ Keycloak client เพื่อเริ่มการทำงานของระบบล็อกอิน
+    ใส่ออปชันเป็น object: onLoad: "login-required" หมายความว่า เมื่อโหลดหน้านี้จะบังคับให้ผู้ใช้ล็อกอินทันที ถ้ายังไม่ล็อกอิน จะพาไปหน้า login ของ Keycloak
+    checkLoginIframe: false ปิดการเช็คสถานะล็อกอินผ่าน iframe ((หน้าต่างเว็บเล็ก ๆ ซ่อนอยู่ในหน้าเว็บ) เพื่อคอยตรวจสอบว่าเรายังล็อกอินอยู่กับ Keycloak Server อยู่ไหม)
+    ถ้า init สำเร็จ (ล็อกอินเรียบร้อยแล้ว) จะเข้า then block เก็บ Token ที่ได้รับจาก Keycloak ลงใน sessionStorage ของเบราว์เซอร์ kcToken: access token 
+    สำหรับยืนยันตัวตนและเรียก API kcRefreshToken: token สำหรับต่ออายุ access token (refresh token) จากนั้นเปลี่ยนหน้าเว็บไปที่ "./reserve.html"
+    ถ้าเกิดข้อผิดพลาดระหว่าง init (เช่น ล็อกอินไม่ผ่าน หรือ server ไม่ตอบ) เข้า block นี้เพื่อจับ error และแสดง error ใน console ของเบราว์เซอร์
+    แสดงกล่อง alert แจ้งผู้ใช้ว่า "Login failed. Please try again or contact admin." (ล็อกอินล้มเหลว กรุณาลองใหม่หรือแจ้งผู้ดูแลระบบ)
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+reserve.html
+
+      const isLocal = ["localhost", "127.0.0.1"].includes(
+        window.location.hostname
+      );
+
+      คำอธิบาย ["localhost", "127.0.0.1"].includes(...) ตรวจว่า hostname อยู่ในรายการ localhost หรือ 127.0.0.1 หรือไม่ ถ้า isLocal เป็น true
+      เมื่อรันบนเครื่องเราเอง และ จะเป็น false เมื่อรันบนเซิร์ฟจริง เช็คเพื่อเลือกค่า endpoint (API / Keycloak) ให้เหมาะกับ environment
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+      const API_BASE = isLocal
+        ? "http://localhost:3000/api/v1"
+        : "http://bscit.sit.kmutt.ac.th/intproj25/kp2/itb-ecors/api";
+
+      คำอธิบาย ถ้า isLocal ใช้ backend local http://localhost:3000/api/v1 ถ้าไม่ ใช้ URL production ของมหาลัย API_BASE จะถูกใช้ต่อเพื่อเรียก endpoint ต่าง ๆ 
+      เช่น /students/:id/declared-plan
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+      const KC = isLocal
+        ? {
+            url: "http://localhost:8180",
+            realm: "itb-ecors",
+            clientId: "itb-ecors-kp2",
+          }
+        : {
+            url: "https://bscit.sit.kmutt.ac.th/intproj25/ft/keycloak/",
+            realm: "itb-ecors",
+            clientId: "itb-ecors-kp2",
+          };
+
+      คำอธิบาย KC เป็น object config สำหรับสร้าง Keycloak client instance มี url = ที่อยู่ Keycloak server (local หรือ production)
+      realm = realm ที่ตั้งใน Keycloak (itb-ecors) และ clientId = ชื่อ client ที่ลงทะเบียนใน Keycloak
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+      let keycloak; -> ประกาศตัวแปรเพื่อให้เข้าถึงได้ทั้งไฟล์
+
+      function showDialog(msg, onOk) {
+        const modal = document.getElementById("ecors-modal");
+        const okBtn = document.getElementById("ecors-modal-ok");
+        const msgEl = document.getElementById("ecors-modal-message");
+
+        msgEl.textContent = msg;
+        modal.style.display = "flex";
+
+        okBtn.onclick = () => {
+          modal.style.display = "none";
+          if (typeof onOk === "function") {
+            onOk();
+          }
+        };
+      }
+
+      คำอธิบาย showDialog(msg, onOk) รับข้อความ msg และ optional callback onOk document.getElementById(...) ดึง element ของ modal, ปุ่ม OK, และ element 
+      ที่จะแสดงข้อความ msgEl.textContent = msg; ใส่ข้อความลงใน modal modal.style.display = "flex"; แสดง modal ตั้ง okBtn.onclick ให้ซ่อน modal เมื่อกด และเรียก 
+      onOk() ถ้าเป็นฟังก์ชัน ผลลัพธ์การใช้งาน: เป็นวิธี reuse ได้สำหรับแสดงข้อความและทำงานต่อเมื่อผู้ใช้กด OK
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+      async function initPage() {
+        const token = sessionStorage.getItem("kcToken");
+        const refresh = sessionStorage.getItem("kcRefreshToken");
+
+      คำอธิบาย อ่านค่า kcToken (access token) และ kcRefreshToken (refresh token) ที่เก็บตอน login สำเร็จ sessionStorage อยู่ต่อเฉพาะ 
+      session ปัจจุบัน (ปิดแท็บ = หาย)  
+
+        if (!token || !refresh) {
+          return (window.location.href = "./keycloak.html");
+        }
+
+      คำอธิบาย ถ้าขาด token ใด ๆ ให้ redirect ไปหน้า keycloak.html เพื่อให้ Keycloak บังคับล็อกอินใหม่ return เพื่อหยุดการทำงานฟังก์ชันต่อ
+        
+        keycloak = new Keycloak(KC); -> สร้าง instance ของ Keycloak client เพื่อใช้ฟังก์ชันเช่น init, updateToken, logout เป็นต้น
+
+        await keycloak.init({
+          token,
+          refreshToken: refresh,
+          checkLoginIframe: false,
+        });
+
+      คำอธิบาย keycloak.init({...}) บอกให้ Keycloak client ใช้ token/refresh token ที่เรามีอยู่ แทนการบังคับ login ใหม่ checkLoginIframe: false ปิด iframe-based 
+      session check await รอให้ init เสร็จ (จะทำ parsing token และเตรียม keycloak.tokenParsed)
+
+        const name =
+          keycloak.tokenParsed.name || keycloak.tokenParsed.preferred_username;
+        document.querySelector(".ecors-fullname").textContent = name;
+
+      คำอธิบาย keycloak.tokenParsed เป็น object ที่ได้จากการ decode access token (JWT) — มี field เช่น name, preferred_username
+      แสดงชื่อผู้ใช้ใน element ที่มี class .ecors-fullname
+
+        const studentId = keycloak.tokenParsed.preferred_username; -> ในระบบนี้ preferred_username ถูกใช้เป็น studentId (เช่น 67130500144) — เก็บไว้ใช้เรียก API
+
+        loadPlanList();
+        loadDeclaredPlan(studentId);
+
+      คำอธิบาย loadPlanList() — เติม dropdown ของแผนต่าง ๆ (ดูรายละเอียดในบล็อกต่อ) loadDeclaredPlan(studentId) เรียก API เพื่อตรวจว่าผู้ใช้ประกาศแผนไว้หรือยัง และแสดงผล
+
+        document.querySelector(".ecors-button-signout").onclick = () => {
+          sessionStorage.clear();
+          keycloak.logout({
+            redirectUri: isLocal
+              ? "http://127.0.0.1:5501/frontend/index.html"
+              : "http://bscit.sit.kmutt.ac.th/intproj25/kp2/itb-ecors/index.html",
+          });
+        };
+
+      คำอธิบาย เมื่อกด sign out sessionStorage.clear() เคลียร์ token และข้อมูล session ทั้งหมด keycloak.logout({ redirectUri }) เรียก Keycloak logout 
+      แล้ว redirect ไปหน้า index ของระบบ (isLocal แยก redirect ให้ถูกต้อง)
+
+        setInterval(() => {
+          keycloak.updateToken(60).then((refreshed) => {
+            if (refreshed) {
+              sessionStorage.setItem("kcToken", keycloak.token);
+              sessionStorage.setItem("kcRefreshToken", keycloak.refreshToken);
+            }
+          });
+        }, 60000);
+      }
+
+      คำอธิบาย ทุก ๆ 60000 ms (60 วินาที) เรียก keycloak.updateToken(60) updateToken(60) หมายความ: ถ้า token จะหมดอายุภายใน 60 วินาที ให้พยายามใช้ refresh token 
+      ขอต่ออายุ .then((refreshed) => { ... }) refreshed เป็น boolean true คือ token ถูกต่ออายุจริง ถ้า refreshed เก็บ token ใหม่และ refresh token ใหม่ลง 
+      sessionStorage หน้าเว็บสามารถต่ออายุ token อัตโนมัติ ทำให้ผู้ใช้ไม่ต้องล็อกอินบ่อย
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+      function loadPlanList() {
+        const dropdown = document.getElementById("ecors-dropdown-plan");
+        dropdown.innerHTML = `<option value="">-- Select Major --</option>`;
+
+        const plans = [
+          { id: 1, code: "FE", name: "Frontend Developer" },
+          { id: 2, code: "BE", name: "Backend Developer" },
+          { id: 3, code: "FS", name: "Full-Stack Developer" },
+          { id: 4, code: "AI", name: "AI Developer" },
+          { id: 5, code: "DS", name: "Data Scientist" },
+          { id: 6, code: "DA", name: "Data Analyst" },
+          { id: 7, code: "DE", name: "Data Engineer" },
+          { id: 8, code: "DB", name: "Database Admin" },
+          { id: 9, code: "UX", name: "UX/UI Designer" },
+        ];
+
+        plans.forEach((p) => {
+          const opt = document.createElement("option");
+          opt.value = p.id;
+          opt.textContent = `${p.code} - ${p.name}`;
+          dropdown.appendChild(opt);
+        });
+
+        dropdown.onchange = () => {
+          const btn = document.getElementById("ecors-button-declare");
+          btn.disabled = dropdown.value === "";
+          btn.classList.toggle("active", dropdown.value !== "");
+        };
+      }
+
+      คำอธิบาย ดึง element dropdown (ecors-dropdown-plan) ตั้งค่า default option -- Select Major -- สร้าง array plans แต่ในระบบจริงอาจดึงจาก API แทน
+      สำหรับแต่ละ plan สร้าง <option> แล้ว append ไปยัง dropdown ตั้ง event dropdown.onchange ปรับสถานะ declare (ecors-button-declare) ให้ 
+      enabled/disabled ตามว่ามีแผนถูกเลือกหรือไม่ toggle class active เพื่อเปลี่ยนสไตล์เมื่อเลือก
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+      async function loadDeclaredPlan(studentId) {
+        const target = document.getElementById("ecors-declared-plan");
+
+        try {
+          const res = await fetch(
+            `${API_BASE}/students/${studentId}/declared-plan`
+          );
+
+          if (res.status === 404) {
+            target.textContent = "Not Declared";
+            return;
+          }
+
+          const data = await res.json();
+          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          const localTime = new Date(data.updatedAt).toLocaleString([], {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+
+          target.textContent = `Declared ${data.studyPlan.planCode} - ${data.studyPlan.nameEng} on ${localTime} (${timezone}) `;
+        } catch (err) {
+          console.error(err);
+          target.textContent = "Not Declared";
+        }
+      }
+
+        คำอธิบาย const target = document.getElementById("ecors-declared-plan"); element ที่จะแสดงสถานะการประกาศ 
+        const res = await fetch(...); เรียก GET ไปที่ ${API_BASE}/students/${studentId}/declared-plan
+        if (res.status === 404) { ... } ถ้า API ตอบ 404 แปลว่ายังไม่ได้ประกาศ ให้แสดง "Not Declared" แล้ว return const data = await res.json(); 
+        แปลง response เป็น object const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; หาค่า timezone ของผู้ใช้ (เช่น Asia/Bangkok)
+        const localTime = new Date(data.updatedAt).toLocaleString([], {...}) — แปลง data.updatedAt ให้เป็นสตริงวันที่-เวลาใน locale ของ client
+        ใช้ options เพื่อให้รูปแบบ YYYY-MM-DD HH:mm:ss (ตามที่กำหนด) target.textContent = `Declared ${...} on ${localTime} (${timezone}) `;` 
+        แสดงข้อความว่าประกาศแผนไหนเมื่อไหร่ catch (err) { ... } ถ้ามี error ให้แสดง "Not Declared"
+
+----------------------------------------------------------------------------------------------------------------------------------------------------        
+
+      document.getElementById("ecors-button-declare").onclick = async () => {
+        const dropdown = document.getElementById("ecors-dropdown-plan");
+        const planId = Number(dropdown.value);
+        const studentId = keycloak.tokenParsed.preferred_username;
+
+        try {
+          const res = await fetch(
+            `${API_BASE}/students/${studentId}/declared-plan`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ planId }),
+            }
+          );
+
+          if (res.status === 201) {
+            showDialog("Study plan declared successfully!", () => {
+              document.getElementById("declare-box").style.display = "none";
+              loadDeclaredPlan(studentId);
+            });
+            return;
+          }
+
+          if (res.status === 409) {
+            showDialog(
+              "You may have declared study plan already. Please check again.",
+              () => {
+                document.getElementById("declare-box").style.display = "none";
+              }
+            );
+
+            return;
+          }
+
+          showDialog("There is a problem. Please try again later.");
+        } catch (err) {
+          console.error(err);
+          showDialog("There is a problem. Please try again later.");
+        }
+      };
+
+      คำอธิบาย เมื่อคลิกปุ่ม หา dropdown และอ่าน planId (แปลงเป็น Number) หา studentId จาก tokenParsed fetch(..., { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ planId }) })
+      ส่ง POST ไปยัง endpoint เดียวกับการดึง declared-plan เพื่อประกาศแผน body ส่ง { planId } จากนั้นตรวจ res.status 
+      ถ้า 201 → สำเร็จ (Created) → showDialog แจ้งสำเร็จ แล้วใน callback: ซ่อนกล่อง declare-box เรียก loadDeclaredPlan(studentId) เพื่ออัพเดต UI
+      ถ้า 409 → Conflict (ประกาศไปแล้ว) → showDialog ข้อความว่า "You may have declared study plan already." แล้วซ่อน declare-box
+      อื่น ๆ → showDialog แจ้งมีปัญหา catch → network error หรือ exception → log และ showDialog แจ้งมีปัญหา "There is a problem. Please try again later."
+
+      initPage();
+
+      คำอธิบาย เรียกฟังก์ชันเริ่มต้นทันทีเมื่อสคริปต์ถูกรัน จุดนี้จะทำงานตาม flow (เช็ค token → init keycloak → โหลดข้อมูล)
+
+----------------------------------------------------------------------------------------------------------------------------------------------------

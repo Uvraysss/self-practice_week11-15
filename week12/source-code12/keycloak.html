@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Keycloak Login</title>
+<script src="https://cdn.jsdelivr.net/npm/keycloak-js@latest/dist/keycloak.min.js"></script>
+</head>
+<body>
+<script>
+  const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+  const KC = isLocal
+    ? {
+        url: "http://localhost:8180",
+        realm: "itb-ecors",
+        clientId: "itb-ecors-kp2",
+        redirectUri: new URL("./reserve.html", location.href).href
+      }
+    : {
+        url: "https://bscit.sit.kmutt.ac.th/intproj25/ft/keycloak/",
+        realm: "itb-ecors",
+        clientId: "itb-ecors-kp2",
+        redirectUri: new URL("./reserve.html", location.href).href
+      };
+
+  const keycloak = new Keycloak(KC);
+
+  keycloak.init({ onLoad: "login-required", checkLoginIframe: false })
+    .then(() => {
+      sessionStorage.setItem("kcToken", keycloak.token);
+      sessionStorage.setItem("kcRefreshToken", keycloak.refreshToken);
+      window.location.href = "./reserve.html";
+    })
+    .catch(err => {
+      console.error("Keycloak init error:", err);
+      alert("Login failed. Please try again or contact admin.");
+    });
+</script>
+</body>
+</html>
