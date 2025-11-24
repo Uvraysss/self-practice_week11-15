@@ -1,0 +1,605 @@
+self-practice week 15
+
+      const isLocal = ["localhost", "127.0.0.1"].includes(
+        window.location.hostname
+      );
+
+      คำอธิบาย คำอธิบาย ["localhost", "127.0.0.1"].includes(...) ตรวจว่า hostname อยู่ในรายการ localhost หรือ 127.0.0.1 หรือไม่ ถ้า isLocal เป็น true
+      เมื่อรันบนเครื่องเราเอง และ จะเป็น false เมื่อรันบนเซิร์ฟจริง เช็คเพื่อเลือกค่า endpoint (API / Keycloak) ให้เหมาะกับ environment
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+      const API_BASE = isLocal
+        ? "http://localhost:3000/api/v1"
+        : "https://bscit.sit.kmutt.ac.th/intproj25/kp2/itb-ecors/api";
+
+        คำอธิบาย  คำอธิบาย ถ้า isLocal ใช้ backend local http://localhost:3000/api/v1 ถ้าไม่ ใช้ URL production ของมหาลัย API_BASE จะถูกใช้ต่อเพื่อเรียก endpoint ต่าง ๆ 
+        เช่น /students/:id/declared-plan
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+      const KC = isLocal
+        ? {
+            url: "http://localhost:8180",
+            realm: "itb-ecors",
+            clientId: "itb-ecors-kp2",
+          }
+        : {
+            url: "https://bscit.sit.kmutt.ac.th/intproj25/ft/keycloak/",
+            realm: "itb-ecors",
+            clientId: "itb-ecors-kp2",
+          };
+
+        คำอธิบาย KC เป็น object config สำหรับสร้าง Keycloak client instance มี url = ที่อยู่ Keycloak server (local หรือ production)
+        realm = realm ที่ตั้งใน Keycloak (itb-ecors) และ clientId = ชื่อ client ที่ลงทะเบียนใน Keycloak
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        let keycloak; -> ประกาศตัวแปรเพื่อให้เข้าถึงได้ทั้งไฟล์
+
+      const planMap = [
+        { id: 1, code: "FE", name: "Frontend Developer" },
+        { id: 2, code: "BE", name: "Backend Developer" },
+        { id: 3, code: "FS", name: "Full-Stack Developer" },
+        { id: 4, code: "AI", name: "AI Developer" },
+        { id: 5, code: "DS", name: "Data Scientist" },
+        { id: 6, code: "DA", name: "Data Analyst" },
+        { id: 7, code: "DE", name: "Data Engineer" },
+        { id: 8, code: "DB", name: "Database Admin" },
+        { id: 9, code: "UX", name: "UX/UI Designer" },
+      ];
+
+      คำอธิบาย เป็น array ของ object สำหรับ mapping plan ID ชื่อเต็มและรหัส ใช้เวลาแสดง dropdown, หรือแสดง declared plan
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+      // แสดง modal dialog
+      function showDialog(msg, onOk) {
+        const modal = document.getElementById("ecors-modal");
+        const okBtn = document.getElementById("ecors-modal-ok");
+        const msgEl = document.getElementById("ecors-modal-message");
+
+        msgEl.textContent = msg;
+        modal.style.display = "flex";
+
+        okBtn.onclick = () => {
+          modal.style.display = "none";
+          if (typeof onOk === "function") onOk();
+        };
+      }
+
+        คำอธิบาย showDialog(msg, onOk) รับข้อความ msg และ optional callback onOk document.getElementById(...) ดึง element ของ modal, ปุ่ม OK, และ element 
+        ที่จะแสดงข้อความ msgEl.textContent = msg; ใส่ข้อความลงใน modal modal.style.display = "flex"; แสดง modal ตั้ง okBtn.onclick ให้ซ่อน modal เมื่อกด และเรียก 
+        onOk() ถ้าเป็นฟังก์ชัน ผลลัพธ์การใช้งาน: เป็นวิธี reuse ได้สำหรับแสดงข้อความและทำงานต่อเมื่อผู้ใช้กด OK
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    async function initPage() {
+        const token = sessionStorage.getItem("kcToken");
+        const refresh = sessionStorage.getItem("kcRefreshToken");
+
+        คำอธิบาย อ่านค่า kcToken (access token) และ kcRefreshToken (refresh token) ที่เก็บตอน login สำเร็จ sessionStorage อยู่ต่อเฉพาะ 
+        session ปัจจุบัน (ปิดแท็บ = หาย) 
+
+        if (!token || !refresh)
+          return (window.location.href = "./keycloak.html");
+
+        คำอธิบาย ถ้าขาด token ใด ๆ ให้ redirect ไปหน้า keycloak.html เพื่อให้ Keycloak บังคับล็อกอินใหม่ return เพื่อหยุดการทำงานฟังก์ชันต่อ
+
+        keycloak = new Keycloak(KC);
+
+        await keycloak.init({
+          token,
+          refreshToken: refresh,
+          checkLoginIframe: false,
+        });
+
+        คำอธิบาย keycloak.init({...}) บอกให้ Keycloak client ใช้ token/refresh token ที่เรามีอยู่ แทนการบังคับ login ใหม่ checkLoginIframe: false ปิด iframe-based 
+        session check await รอให้ init เสร็จ (จะทำ parsing token และเตรียม keycloak.tokenParsed)
+
+        const name =
+          keycloak.tokenParsed.name || keycloak.tokenParsed.preferred_username;
+        document.querySelector(".ecors-fullname").textContent = name;
+
+        คำอธิบาย keycloak.tokenParsed เป็น object ที่ได้จากการ decode access token (JWT) — มี field เช่น name, preferred_username
+        แสดงชื่อผู้ใช้ใน element ที่มี class .ecors-fullname
+
+        const studentId = keycloak.tokenParsed.preferred_username;
+
+        loadPlanList();
+        loadDeclaredPlan(studentId);
+
+        คำอธิบาย loadPlanList() — เติม dropdown ของแผนต่าง ๆ (ดูรายละเอียดในบล็อกต่อ) loadDeclaredPlan(studentId) เรียก API เพื่อตรวจว่าผู้ใช้ประกาศแผนไว้หรือยัง และแสดงผล
+
+        document.querySelector(".ecors-button-signout").onclick = () => {
+          sessionStorage.clear();
+          keycloak.logout({
+            redirectUri: isLocal
+              ? "http://127.0.0.1:5501/frontend/index.html"
+              : "https://bscit.sit.kmutt.ac.th/intproj25/kp2/itb-ecors/index.html",
+          });
+        };
+
+        คำอธิบาย เมื่อกด sign out sessionStorage.clear() เคลียร์ token และข้อมูล session ทั้งหมด keycloak.logout({ redirectUri }) เรียก Keycloak logout 
+        แล้ว redirect ไปหน้า index ของระบบ (isLocal แยก redirect ให้ถูกต้อง)
+
+        setInterval(() => {
+          keycloak.updateToken(60).then((refreshed) => {
+            if (refreshed) {
+              sessionStorage.setItem("kcToken", keycloak.token);
+              sessionStorage.setItem("kcRefreshToken", keycloak.refreshToken);
+            }
+          });
+        }, 60000);
+      }
+
+        คำอธิบาย ทุก ๆ 60000 ms (60 วินาที) เรียก keycloak.updateToken(60) updateToken(60) หมายความ: ถ้า token จะหมดอายุภายใน 60 วินาที ให้พยายามใช้ refresh token 
+        ขอต่ออายุ .then((refreshed) => { ... }) refreshed เป็น boolean true คือ token ถูกต่ออายุจริง ถ้า refreshed เก็บ token ใหม่และ refresh token ใหม่ลง 
+        sessionStorage หน้าเว็บสามารถต่ออายุ token อัตโนมัติ ทำให้ผู้ใช้ไม่ต้องล็อกอินบ่อย
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+      function loadPlanList() {
+        const dropdown = document.getElementById("ecors-dropdown-plan");
+        dropdown.innerHTML = `<option value="">-- Select Major --</option>`;
+
+        planMap.forEach((p) => {
+          const opt = document.createElement("option");
+          opt.value = p.id;
+          opt.textContent = `${p.code} - ${p.name}`;
+          dropdown.appendChild(opt);
+        });
+
+        dropdown.onchange = () => {
+          const btn = document.getElementById("ecors-button-declare");
+          btn.disabled = dropdown.value === "";
+          btn.classList.toggle("active", dropdown.value !== "");
+        };
+      }
+
+        คำอธิบาย ดึง element dropdown (ecors-dropdown-plan) ตั้งค่า default option -- Select Major -- สร้าง array plans แต่ในระบบจริงอาจดึงจาก API แทน
+        สำหรับแต่ละ plan สร้าง <option> แล้ว append ไปยัง dropdown ตั้ง event dropdown.onchange ปรับสถานะ declare (ecors-button-declare) ให้ 
+        enabled/disabled ตามว่ามีแผนถูกเลือกหรือไม่ toggle class active เพื่อเปลี่ยนสไตล์เมื่อเลือก
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+      async function loadDeclaredPlan(studentId) 
+        const target = document.getElementById("ecors-declared-plan");
+
+        คำอธิบาย ประกาศฟังก์ชันแบบ async ชื่อ loadDeclaredPlan รับพารามิเตอร์ studentId — ฟังก์ชันนี้ใช้ await ภายในเพื่อเรียก API แบบอะซิงโครนัสและอัพเดต UI ตามผลลัพธ์
+        const target = document.getElementById("ecors-declared-plan"); หาตัว DOM element ที่มี id="ecors-declared-plan" แล้วเก็บไว้ในตัวแปร target — 
+        นี่คือที่จะแสดงสถานะการประกาศ (เช่น “Declared …” หรือ “Not Declared”)
+
+        try 
+          const res = await fetch(
+            `${API_BASE}/students/${studentId}/declared-plan`
+          );
+
+          if (res.status === 404) {
+            target.textContent = "Not Declared";
+            return;
+          }
+
+        คำอธิบาย ถ้า API ตอบสถานะ 404 ให้สันนิษฐานว่านักศึกษายังไม่ได้ประกาศ — แสดงข้อความ “Not Declared” ใน target แล้วออกจากฟังก์ชัน
+    
+        const data = await res.json();
+    
+        คำอธิบาย เป็นการแปลง body เป็น JSON const data = await res.json(); แปลง response body เป็น object data ต่อจากนี้ data ถูกใช้อ้างอิงสถานะ 
+        / planId / updatedAt
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+          // ===========================
+          // (1) CHECK CANCELLED FIRST
+          // ===========================
+          if (data.status === "CANCELLED") {
+            const planInfo = planMap.find((p) => p.id === data.planId);
+
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const localTime = new Date(data.updatedAt).toLocaleString([], {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            });
+
+            target.textContent = planInfo
+              ? `CANCELLED ${planInfo.code} - ${planInfo.name} on ${localTime} (${timezone})`
+              : `CANCELLED on ${localTime} (${timezone})`;
+
+            // lock dropdown + reset buttons
+            const dropdown = document.getElementById("ecors-dropdown-plan");
+            const btn = document.getElementById("ecors-button-declare");
+            const container = document.getElementById(
+              "change-cancel-container"
+            );
+
+            dropdown.value = "";
+            btn.style.display = "inline-block";
+            btn.disabled = true;
+            if (container) container.innerHTML = "";
+
+            return;
+          }
+
+          คำอธิบาย ตรวจสอบกรณีถูกยกเลิกก่อนเสมอ if (data.status === "CANCELLED") { ถ้าฟิลด์ status ใน data เป็น "CANCELLED" ให้จัดการกรณียกเลิกก่อน (priority)
+          const planInfo = planMap.find((p) => p.id === data.planId); planMap คือ array ของแผน — หา object แผนที่มี id === data.planId เพื่อเอาชื่อ/รหัสแผนมาแสดง
+          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone; หาชื่อ timezone ของเครื่องผู้ใช้ (เช่น "Asia/Bangkok") เพื่อแสดงประกอบเวลา
+          แปลง data.updatedAt เป็น Date แล้วแปลงเป็น string ตาม options ที่กำหนด — ได้ localTime ที่อ่านง่าย ถ้ามี planInfo ให้แสดงรหัสและชื่อแผน ถ้าไม่มี ก็แสดงข้อความยกเลิกพร้อมเวลา
+          บล็อกต่อไป: lock dropdown + reset buttons const dropdown = document.getElementById("ecors-dropdown-plan"); หา select/dropdown ของแผน
+          const btn = document.getElementById("ecors-button-declare"); หา button Declare const container = document.getElementById("change-cancel-container");
+          หา container ที่เก็บปุ่ม Change/Cancel (ถ้ามี) สุดท้าย dropdown.value = ""; เซ็ต dropdown ให้ว่าง (ไม่เลือก) btn.style.display = "inline-block";
+          แสดงปุ่ม Declare อีกครั้ง (หรือแน่ใจว่าปุ่มแสดง) btn.disabled = true; ปิดการใช้งานปุ่ม Declare (disabled) — ทำให้ผู้ใช้ไม่สามารถประกาศใหม่ทันที
+          if (container) container.innerHTML = ""; ถ้ามี container ให้ล้าง (เอาปุ่ม Change/Cancel ออก) return; สิ้นสุดการทำงานของฟังก์ชันเมื่อพบว่า status === "CANCELLED"
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+          // ===========================
+          // (2) ถ้าไม่มี planId → Not Declared
+          // ===========================
+          if (typeof data.planId !== "number") {
+            target.textContent = "Not Declared";
+            return;
+          }
+
+          คำอธิบาย ถ้าไม่มี planId → Not Declared if (typeof data.planId !== "number") { ถ้า data.planId ไม่ใช่ตัวเลข (เช่น null, undefined, หรือ string) — 
+          ถือว่าไม่มีการประกาศ target.textContent = "Not Declared"; แสดงข้อความ “Not Declared” 
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+          // ===========================
+          // (3) DECLARED CASE
+          // ===========================
+          const planInfo = planMap.find((p) => p.id === data.planId);
+          if (!planInfo) {
+            target.textContent = "Not Declared";
+            return;
+          }
+
+          const dropdown = document.getElementById("ecors-dropdown-plan");
+          dropdown.value = data.planId;
+
+          replaceDeclareWithChangeCancel(
+            data.planId,
+            studentId,
+            data.updatedAt
+          );
+
+          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          const localTime = new Date(data.updatedAt).toLocaleString([], {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+
+          target.textContent = `Declared ${planInfo.code} - ${planInfo.name} on ${localTime} (${timezone})`;
+        } catch (err) {
+          console.error(err);
+          target.textContent = "Error loading";
+        }
+      }
+
+        คำอธิบาย กรณี DECLARED (มี planId และไม่ถูกยกเลิก) const planInfo = planMap.find((p) => p.id === data.planId); หาแผนจาก planMap อีกครั้ง — ถ้าไม่เจอ 
+        ก็ถือว่า Not Declared if (!planInfo) { target.textContent = "Not Declared"; return; } ถ้าไม่เจอข้อมูลแผน ให้แสดง Not Declared และออก
+        const dropdown = document.getElementById("ecors-dropdown-plan"); หา dropdown element อีกครั้ง dropdown.value = data.planId;
+        เซ็ต select ให้เลือกแผนที่ประกาศไว้ (value เป็น id) replaceDeclareWithChangeCancel(data.planId, studentId, data.updatedAt);
+        เรียกฟังก์ชัน replaceDeclareWithChangeCancel เพื่อแทนที่ปุ่ม Declare ด้วยปุ่ม Change + Cancel — ส่ง planId, studentId, updatedAt ไป
+        ได้ เวลา/timezone เหมือนบล็อกก่อนหน้า หา timezone, แปลง updatedAt → localTime target.textContent = Declared ${planInfo.code} - ${planInfo.name} 
+        on ${localTime} (${timezone}); แสดงข้อความยืนยันว่าได้ประกาศแผนอะไร เวลาเมื่อไร และ timezone จับข้อผิดพลาดทั่วไป catch (err) ถ้าเกิด exception ใด ๆ ในบล็อก 
+        try console.error(err); log ข้อผิดพลาดลง console target.textContent = "Error loading"; แสดงข้อความ Error loading ในหน้า
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+      function showConfirm(message) 
+        return new Promise(resolve) => 
+          const overlay = document.createElement("div");
+          overlay.style.position = "fixed";
+          overlay.style.top = "0";
+          overlay.style.left = "0";
+          overlay.style.width = "100vw";
+          overlay.style.height = "100vh";
+          overlay.style.background = "rgba(0,0,0,0.5)";
+          overlay.style.display = "flex";
+          overlay.style.alignItems = "center";
+          overlay.style.justifyContent = "center";
+          overlay.style.zIndex = "9999";
+
+          คำอธิบาย ฟังก์ชัน showConfirm(message) — สร้าง modal confirm แบบ Promise เพื่อรอการตอบกลับจาก Client 
+          function showConfirm(message) { return new Promise((resolve) => { ฟังก์ชันสร้าง dialog ยืนยัน (confirm) ในหน้าแบบ custom และคืน Promise ที่ resolve 
+          เป็น true หรือ false ตามปุ่มที่กด เริ่มจากการสร้าง overlay (พื้นหลังมืด) และตั้งสไตล์ตำแหน่งเต็มหน้าจอ: const overlay = document.createElement("div");
+          ตั้ง position: fixed, top/left: 0, width: 100vw, height: 100vh, background ครึ่งโปร่ง, flex centering, zIndex สูง จุดประสงค์เพื่อ บล็อก interaction 
+          ด้านหลังและแสดง dialog ตรงกลาง
+
+          const box = document.createElement("div");
+          box.style.background = "#fff";
+          box.style.padding = "24px";
+          box.style.borderRadius = "12px";
+          box.style.width = "360px";
+          box.style.boxShadow = "0 4px 20px rgba(0,0,0,0.2)";
+          box.style.textAlign = "center";
+          box.setAttribute("class", "ecors-dialog");
+
+          คำอธิบาย สร้าง box (กล่องข้อความ) และตั้งสไตล์ (padding, borderRadius, shadow) แล้วกำหนด class="ecors-dialog"
+
+          const msg = document.createElement("p");
+          msg.textContent = message;
+          msg.style.marginBottom = "20px";
+          msg.style.fontSize = "16px";
+          msg.setAttribute("class", "ecors-dialog-message");
+
+          คำอธิบาย สร้าง <p> สำหรับข้อความ message แล้วตั้ง style และ class="ecors-dialog-message"
+
+          const btnWrap = document.createElement("div");
+          btnWrap.style.display = "flex";
+          btnWrap.style.gap = "12px";
+          btnWrap.style.justifyContent = "center";
+
+          คำอธิบาย สร้าง btnWrap เป็น container สำหรับปุ่มสองปุ่ม จัดแบบ flex มี gap
+
+          const yesBtn = document.createElement("button");
+          yesBtn.textContent = "Cancel Declaration";
+          yesBtn.style.padding = "10px 18px";
+          yesBtn.style.borderRadius = "5px";
+          yesBtn.style.border = "none";
+          yesBtn.style.background = "#0D3B66";
+          yesBtn.style.color = "white";
+          yesBtn.setAttribute("class", "ecors-button-cancel");
+
+          const noBtn = document.createElement("button");
+          noBtn.textContent = "Keep Declaration";
+          noBtn.style.padding = "10px 18px";
+          noBtn.style.borderRadius = "5px";
+          noBtn.style.border = "none";
+          noBtn.style.background = "#0D3B66";
+          noBtn.style.color = "white";
+          noBtn.setAttribute("class", "ecors-button-keep");
+
+          คำอธิบาย สร้างปุ่ม yesBtn และ noBtn
+          yesBtn.textContent = "Cancel Declaration"; — ปุ่มยืนยันการยกเลิก
+          noBtn.textContent = "Keep Declaration"; — ปุ่มยกเลิกการยกเลิก (keep)
+          ทั้งคู่ตั้งสไตล์ padding, borderRadius, background, color และ class เพื่อให้ CSS ภายนอกจับได้
+
+          btnWrap.appendChild(yesBtn);
+          btnWrap.appendChild(noBtn);
+          box.appendChild(msg);
+          box.appendChild(btnWrap);
+          overlay.appendChild(box);
+          document.body.appendChild(overlay);
+
+          คำอธิบาย ต่อเติม DOM: append ปุ่มลงใน btnWrap, append msg+btnWrap ลงใน box, append box ลงใน overlay, 
+          แล้ว append overlay ลงใน document.body — dialog โผล่ขึ้น
+
+          const close = () => document.body.removeChild(overlay); -> ฟังก์ชันย่อยเพื่อปิด dialog โดยลบ overlay ออกจาก DOM
+          
+          yesBtn.onclick = () => {
+            close();
+            resolve(true);
+          };
+          noBtn.onclick = () => {
+            close();
+            resolve(false);
+          };
+
+          คำอธิบาย yesBtn.onclick = () => { close(); resolve(true); }; — ถ้ากดยืนยัน ให้ปิดและ resolve(true)
+          noBtn.onclick = () => { close(); resolve(false); }; — ถ้ากด keep ให้ปิดและ resolve(false)
+          เพราะส่งคืน Promise จึงสามารถ await showConfirm(message) เพื่อรอคำตอบได้
+        
+        });
+      }
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+      // แทนที่ปุ่ม Declare ด้วย Change/Cancel
+      function replaceDeclareWithChangeCancel(planId, studentId, updatedAt) 
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const localTime = new Date(updatedAt).toLocaleString([], {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+
+        const declareBox = document.getElementById("declare-box");
+        const dropdown = document.getElementById("ecors-dropdown-plan");
+
+        dropdown.value = planId;
+
+        let container = document.getElementById("change-cancel-container");
+        if (!container) {
+          container = document.createElement("div");
+          container.id = "change-cancel-container";
+          declareBox.appendChild(container);
+        }
+        container.innerHTML = "";
+        container.style.display = "flex";
+        container.style.gap = "8px";
+
+        const btn = document.getElementById("ecors-button-declare");
+        btn.style.display = "none";
+
+        const changeBtn = document.createElement("button");
+        changeBtn.id = "ecors-button-change";
+        changeBtn.textContent = "Change";
+        const cancelBtn = document.createElement("button");
+        cancelBtn.id = "ecors-button-cancel";
+        cancelBtn.textContent = "Cancel";
+
+        container.appendChild(changeBtn);
+        container.appendChild(cancelBtn);
+
+        คำอธิบาย function replaceDeclareWithChangeCancel(planId, studentId, updatedAt) ฟังก์ชันนี้จัด UI ให้เมื่อมี declared plan — สร้างปุ่ม Change และ Cancel 
+        และผูก event ให้ หาชื่อ timezone และแปลง updatedAt เป็น localTime เหมือนเดิม — เพื่อใช้ในข้อความ confirm/แสดงเวลา const declareBox = document.getElementById("declare-box");
+        หา element ที่เป็นกล่องของปุ่ม/controls const dropdown = document.getElementById("ecors-dropdown-plan"); หา dropdown dropdown.value = planId;
+        เซ็ต dropdown ให้ค่าปัจจุบัน หา change-cancel-container ถ้ายังไม่มีให้สร้างและ append ลงใน declareBox let container = document.getElementById("change-cancel-container");
+        ถ้าไม่เจอ: สร้าง <div> ตั้ง id แล้ว declareBox.appendChild(container); container.innerHTML = ""; container.style.display = "flex"; container.style.gap = "8px";
+        ล้างเนื้อหาเก่า, ตั้งการแสดงเป็น flex และช่องว่างระหว่างปุ่ม const btn = document.getElementById("ecors-button-declare"); หาปุ่ม Declare ตัวเดิม
+        btn.style.display = "none"; ซ่อนปุ่ม Declare สร้าง changeBtn และ cancelBtn (สองปุ่มใหม่), ตั้ง id, textContent แล้ว append ลง container
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        changeBtn.onclick = async () => {
+          const newPlanId = Number(dropdown.value);
+          if (newPlanId === planId) {
+            showDialog("Please select a different major to change.");
+            return;
+          }
+
+          try {
+            const res = await fetch(
+              `${API_BASE}/students/${studentId}/declared-plan`,
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ planId: newPlanId }),
+              }
+            );
+            if (res.status === 200) {
+              showDialog("Declaration updated.", () => {
+                replaceDeclareWithChangeCancel(
+                  newPlanId,
+                  studentId,
+                  new Date().toISOString()
+                );
+                loadDeclaredPlan(studentId);
+              });
+            } else if (res.status === 404) {
+              showDialog(
+                `No declared plan found for student with id= ${studentId}`
+              );
+            } else showDialog("There is a problem. Please try again later.");
+          } catch (err) {
+            console.error(err);
+            showDialog("There is a problem. Please try again later.");
+          }
+        };
+
+        คำอธิบาย Event handler สำหรับ changeBtn.onclick changeBtn.onclick = async () => { const newPlanId = Number(dropdown.value);
+        เมื่อกด Change → อ่านค่าใหม่จาก dropdown แล้วแปลงเป็น Number if (newPlanId === planId) { showDialog("Please select a different major to change."); return; }
+        ถ้าผู้ใช้ยังเลือกแผนเดิม (ไม่เปลี่ยน) → แจ้งให้เลือกแผนอื่นและคืน (ไม่เรียก API) try { const res = await fetch(${API_BASE}/students/${studentId}/declared-plan, 
+        { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ planId: newPlanId }), }); เรียก API แบบ PUT ไปอัพเดต declared plan 
+        ของ studentId เป็น newPlanId ส่ง body เป็น JSON { planId: newPlanId } if (res.status === 200) { showDialog("Declaration updated.", () => 
+        { replaceDeclareWithChangeCancel(newPlanId, studentId, new Date().toISOString()); loadDeclaredPlan(studentId); }); } ถ้า backend ตอบ 200 
+        แสดง dialog success แล้วใน callback: เรียก replaceDeclareWithChangeCancel ใหม่ และเรียก loadDeclaredPlan(studentId) อีกครั้ง (reload ข้อมูลจาก server) 
+        else if (res.status === 404) { showDialog(No declared plan found for student with id= ${studentId}); } else 
+        showDialog("There is a problem. Please try again later."); กรณี 404 → แจ้งว่าไม่พบ declared plan (backend อาจตอบว่าข้อมูลไม่พบ) กรณีอื่น ๆ → แจ้งปัญหาทั่วไป 
+        } catch (err) { console.error(err); showDialog("There is a problem. Please try again later."); } จับข้อผิดพลาดเครือข่าย/อื่น ๆ → log และแจ้งปัญหา
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        cancelBtn.onclick = async () => {
+          const planInfo = planMap.find((p) => p.id === planId);
+          const message = `You have declared ${planInfo.code} - ${planInfo.name} on ${localTime} (${timezone}).\nAre you sure you want to cancel this declaration?`;
+          const ok = await showConfirm(message);
+          if (!ok) return;
+
+          try {
+            const res = await fetch(
+              `${API_BASE}/students/${studentId}/declared-plan`,
+              { method: "DELETE" }
+            );
+
+            if (res.status === 200) {
+              document.getElementById(
+                "ecors-declared-plan"
+              ).textContent = `CANCELLED ${planInfo.code} - ${planInfo.name} on ${localTime} (${timezone})`;
+
+              container.innerHTML = "";
+              btn.style.display = "inline-block";
+              dropdown.value = "";
+              btn.disabled = true;
+
+              return;
+            } else if (res.status === 404) {
+              showDialog(
+                `No declared plan found for student with id = ${studentId}`
+              );
+            } else {
+              showDialog("There is a problem. Please try again later.");
+            }
+          } catch (err) {
+            console.error(err);
+            showDialog("There is a problem. Please try again later.");
+          }
+        };
+      }
+
+        คำอธิบาย cancelBtn.onclick = async () => เมื่อกด Cancel → ทำ flow ยืนยัน แล้วเรียก API DELETE หากผู้ใช้ยืนยัน const planInfo = planMap.find((p) => p.id === planId);
+        หา planInfo จาก planMap เพื่อเอาชื่อ/รหัสมาสร้างข้อความ confirm const message = You have declared ${planInfo.code} - ${planInfo.name} on ${localTime} (${timezone}).
+        \nAre you sure you want to cancel this declaration?; สร้างข้อความ confirm แสดงแผน + เวลา const ok = await showConfirm(message); if (!ok) return; รอผู้ใช้ตอบจาก showConfirm — 
+        ถ้าผู้ใช้ไม่ยืนยัน (ok === false) → หยุด try { const res = await fetch(${API_BASE}/students/${studentId}/declared-plan, { method: "DELETE" });
+        ถ้าผู้ใช้ยืนยัน → เรียก API แบบ DELETE เพื่อลบ declared plan if (res.status === 200) { document.getElementById("ecors-declared-plan").textContent = 
+        CANCELLED ${planInfo.code} - ${planInfo.name} on ${localTime} (${timezone}); ถ้า backend ตอบ 200 → อัพเดตข้อความบนหน้าเป็น CANCELLED ... พร้อมเวลา
+        container.innerHTML = ""; btn.style.display = "inline-block"; dropdown.value = ""; btn.disabled = true; return;
+        ล้างปุ่ม Change/Cancel (container), แสดงปุ่ม Declare (btn.style.display = "inline-block"), เซ็ต dropdown ให้ว่าง, ปิดการใช้งานปุ่ม Declare (btn.disabled = true) — แล้ว return
+        } else if (res.status === 404) { showDialog(No declared plan found for student with id = ${studentId}); } else { showDialog("There is a problem. Please try again later."); }
+        ตรวจสถานะอื่น ๆ และแจ้งผู้ใช้ตาม } catch (err) { console.error(err); showDialog("There is a problem. Please try again later."); } จับ error เครือข่ายและแสดง dialog ข้อผิดพลาด
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------      
+
+      // กดปุ่ม Declare
+      document.getElementById("ecors-button-declare").onclick = async () => {
+        const dropdown = document.getElementById("ecors-dropdown-plan");
+        const planId = Number(dropdown.value);
+        const studentId = keycloak.tokenParsed.preferred_username;
+
+        try {
+          const res = await fetch(
+            `${API_BASE}/students/${studentId}/declared-plan`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ planId }),
+            }
+          );
+          if (res.status === 201) {
+            showDialog("Study plan declared successfully!", () => {
+              replaceDeclareWithChangeCancel(
+                planId,
+                studentId,
+                new Date().toISOString()
+              );
+              loadDeclaredPlan(studentId);
+            });
+            return;
+          }
+          if (res.status === 409) {
+            showDialog(
+              "You may have declared study plan already. Please check again.",
+              () => {
+                document.getElementById("declare-box").style.display = "none";
+              }
+            );
+            return;
+          }
+          showDialog("There is a problem. Please try again later.");
+        } catch (err) {
+          console.error(err);
+          showDialog("There is a problem. Please try again later.");
+        }
+      };
+
+      คำอธิบาย document.getElementById("ecors-button-declare").onclick = async () =>  ผูก event ให้ปุ่ม Declare — เมื่อคลิกจะพยายาม POST เพื่อประกาศแผน
+      const dropdown = document.getElementById("ecors-dropdown-plan"); const planId = Number(dropdown.value); อ่านค่าแผนที่เลือกจาก dropdown แล้วแปลงเป็น Number
+      const studentId = keycloak.tokenParsed.preferred_username; ดึง studentId จาก keycloak.tokenParsed.preferred_username — หมายความว่าใช้ Keycloak สำหรับ authentication 
+      และ preferred_username เก็บ id นักศึกษา (ต้องแน่ใจว่ามีตัวแปร keycloak ใน scope) try { const res = await fetch(${API_BASE}/students/${studentId}/declared-plan, 
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ planId }), }); เรียก API แบบ POST เพื่อสร้าง declared plan ใหม่ ส่ง { planId } เป็น body
+      if (res.status === 201) { showDialog("Study plan declared successfully!", () => { 
+      replaceDeclareWithChangeCancel(planId, studentId, new Date().toISOString()); loadDeclaredPlan(studentId); }); return; }
+      ถ้า backend คืน 201 Created → แสดง dialog success แล้วใน callback: เรียก replaceDeclareWithChangeCancel เพื่อแสดงปุ่ม Change/Cancel และ loadDeclaredPlan เพื่อรีเฟรชข้อมูล
+      return; เพื่อหยุด flow ปกติ if (res.status === 409) { showDialog("You may have declared study plan already. Please check again.", () => 
+      { document.getElementById("declare-box").style.display = "none"; }); return; } ถ้า backend ตอบ 409 Conflict → แจ้งผู้ใช้ว่าอาจประกาศไปแล้ว และปิดกล่อง declare-box ใน callback
+      showDialog("There is a problem. Please try again later."); ถ้าสถานะไม่ใช่ 201 หรือ 409 → แจ้งข้อผิดพลาดทั่วไป } catch (err) { console.error(err); 
+      showDialog("There is a problem. Please try again later."); } จับ error เครือข่ายและแสดง dialog
+
+      initPage();
+      
+      คำอธิบาย เรียกฟังก์ชันเริ่มต้นทันทีเมื่อสคริปต์ถูกรัน จุดนี้จะทำงานตาม flow (เช็ค token → init keycloak → โหลดข้อมูล)
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
