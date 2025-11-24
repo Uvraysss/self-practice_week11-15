@@ -1,0 +1,162 @@
+self-practice week 13
+
+Problem1
+/*Problem 1: Dynamic To-Do List (Event + DOM)
+Problem:
+Create a To-Do List on a web page:
+There is an input field for adding tasks and an “Add” button.
+When clicking “Add,” the task should appear as a list item with a “Delete” button.
+Clicking “Delete” removes the task from the list. */
+
+const taskInput = document.getElementById('taskInput');
+const addBtn = document.getElementById('addBtn');
+const taskList = document.getElementById('taskList');
+
+addBtn.addEventListener('click', () => {
+    const task = taskInput.value.trim();
+    if(!task) return;
+
+    const li = document.createElement('li');
+    li.textContent = task;
+
+    const delBtn = document.createElement('button');
+    delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', () => li.remove());
+
+    li.appendChild(delBtn);
+    taskList.appendChild(li);
+
+    taskInput.value = '';
+});
+
+คำอธิบาย จากโจทย์ต้องการให้สร้าง To-Do List แบบไดนามิกบนหน้าเว็บ โดยมีเงื่อนไขดังนี้ หน้าเว็บต้องมี ช่องกรอกข้อความ สำหรับพิมพ์ task และ ปุ่ม Add
+เมื่อผู้ใช้พิมพ์ข้อความและกดปุ่ม Add ให้ task แสดง list item ในหน้าเว็บ แต่ละ task จะต้องมี ปุ่ม Delete ของตัวเอง เมื่อกดปุ่ม Delete ระบบจะลบ task 
+นั้นออกจากรายการทันที 
+    เริ่มต้นจากการเข้าถึง element ต่างๆ ใน DOM และเพิ่ม Event Listener ให้ปุ่ม Add addEventListener('click', ...) หมายความว่า “เมื่อผู้ใช้คลิกปุ่มนี้ 
+ให้ทำงานฟังก์ชันใน callback” ใช้ Arrow Function (() => { ... }) เป็น callback function ต่อมารับค่าจาก input field และตรวจสอบว่ามีข้อมูลไหม 
+taskInput.value คือการดึงค่าที่ผู้ใช้พิมพ์ .trim() ให้ลบช่องว่างด้านหน้าและด้านหลัง if(!task) return; ถ้าไม่มีข้อความ (empty string) ให้ หยุดการทำงาน
+ต่อมาถ้ามีข้อมูลก็ให้สร้าง element ใหม่สำหรับ task document.createElement('li') สร้าง <li> ใหม่ li.textContent = task; กำหนดข้อความใน <li> เป็น 
+task ที่ผู้ใช้พิมพ์ ต่อมาเป็นการสร้างปุ่ม Delete สำหรับแต่ละ task เริ่มจากการสร้าง <button> ใหม่ กำหนดข้อความด้านในเป็น "Delete" เพิ่ม click event ให้ปุ่ม 
+เมื่อกดจะ ลบ <li> นั้นออกจาก list li.remove() ลบ element จาก DOM สุดท้ายเป็นการเพิ่มปุ่ม Delete เข้าไปใน <li> และ <li> เข้า list
+li.appendChild(delBtn) ทำให้ปุ่ม Delete เป็น ลูกของ <li> และ taskList.appendChild(li) เป็นการเพิ่ม <li> เข้า <ul> เพื่อแสดงบนหน้าเว็บ
+และ เคลียร์ input field หลังเพิ่ม task ตั้งค่า taskInput.value = '' เพื่อลบข้อความเก่าใน input ทำให้ผู้ใช้สามารถพิมพ์ task ใหม่ได้ทันที
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Problem2
+/*Problem 2: Filter Table Rows (Event + Logic)
+Problem:
+You have a table of user names and an input field to filter names:
+When typing text, only rows that include the typed name should be displayed. */
+
+const search = document.getElementById('search');
+const rows = document.querySelectorAll('table tr');
+
+search.addEventListener('input', () => {
+    const term = search.value.toLowerCase();
+    rows.forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+    });
+})
+
+คำอธิบาย โจทย์นี้ต้องการให้สร้างระบบกรองข้อมูลในตารางแบบไดนามิก โดยมีเงื่อนไขดังนี้ หน้าเว็บมี ตาราง (table) ที่แสดงรายชื่อผู้ใช้ หน้าเว็บมี ช่อง input 
+สำหรับพิมพ์ข้อความเพื่อค้นหาชื่อ เมื่อผู้ใช้พิมพ์ข้อความ ระบบต้องแสดง เฉพาะแถว (row) ที่มีข้อความตรงกับที่พิมพ์ แถวอื่น ๆ ที่ไม่ตรงกับข้อความต้อง ซ่อนออกไปทันที
+    เริ่มจากการเข้าถึง element ใน DOM เช่นเดิม document.getElementById('search') เลือก input field สำหรับกรองชื่อ และ 
+document.querySelectorAll('table tr') เลือก ทุกแถว <tr> ในตาราง ซึ่งรวมทั้ง header row และ data row ต่อมาเริ่มใช้ Event Listener กับ event input
+input event จะเกิดขึ้นทันทีเมื่อผู้ใช้ พิมพ์ แก้ไข หรือลบข้อความ Callback function จะถูกเรียกทุกครั้งที่ input เปลี่ยนค่า search.value คือการดึงค่าที่ผู้ใช้พิมพ์ในช่อง 
+input .toLowerCase() เป็นการแปลงข้อความเป็นตัวพิมพ์เล็ก แก้ปัญหาเรื่องของ Casesensitive สุดท้าย rows.forEach เป็นการวนลูปผ่านทุก <tr> 
+row.textContent ดึง ข้อความทั้งหมดในแถว .toLowerCase().includes(term) ตรวจสอบว่าข้อความมีคำที่ค้นหา (term) หรือไม่ row.style.display = ''
+คือถ้ามีคำที่ค้นหา ให้แสดงแถว row.style.display = 'none' และถ้าไม่มีคำค้น ให้ซ่อนแถว
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Problem3
+
+/*Problem 3: Countdown Timer (Logic + setInterval)
+Problem:
+Create a countdown timer starting from 10 seconds:
+Display the remaining time every second.
+When time reaches 0, display "Time's up!". */
+
+let time = 10;
+const timer = setInterval(() => {
+    console.log(time);
+    time--;
+    if(time < 0) {
+        clearInterval(timer);
+        console.log("Time's up!");
+    }
+}, 1000);
+
+คำอธิบาย จากโจทย์ต้องการให้สร้างตัวนับถอยหลัง (Countdown Timer) เริ่มจาก 10 วินาที โดยมีเงื่อนไขดังนี้ ตัวนับถอยหลังเริ่มจาก 10 วินาที ระบบต้องแสดง
+จำนวนวินาทีที่เหลือ ทุก ๆ 1 วินาที เมื่อเวลาเหลือ 0 ให้แสดงข้อความ "Time's up!" และตัวนับต้อง หยุดการนับถอยหลัง เมื่อครบเวลา
+    เริ่มต้นจากการประกาศตัวแปรสำหรับเก็บเวลา กำหนดให้ time = 10 หมายถึงตัวนับเริ่มจาก 10 วินาที ซึ่งตัวแปรนี้จะถูกลดลงทีละ 1 ทุกวินาที ต่อมาเริ่มการนับเวลาแบบ
+อัตโนมัติทุกวินาที โดย setInterval เป็นฟังก์ชันที่ทำให้โค้ดภายใน callback ทำงานซ้ำตามระยะเวลา เรากำหนด interval = 1000 มิลลิวินาที = 1 วินาที
+ตัวแปร timer จะเก็บ ID ของ interval เพื่อให้สามารถ หยุดการทำงานได้ในภายหลัง มีการแสดงเวลา console.log(time) และลดค่าเวลา time-- ลดค่าตัวแปรเวลา 
+1 หน่วยทุกครั้งที่ callback ถูกเรียก เขียน if เพื่อตรวจสอบว่าหมดเวลาแล้วหรือยัง เมื่อ time < 0 หมายถึงเวลาหมดแล้ว clearInterval(timer) หยุด setInterval 
+เพื่อไม่ให้ callback ทำงานต่อไป console.log("Time's up!") สุดท้ายแสดงข้อความแจ้งว่าหมดเวลา 
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Problem4
+/*Problem 4: Display Current Date and Time
+Problem:
+Write a JavaScript code to display the current date and time in the format "YYYY-MM-DD HH:MM:SS".
+Explanation:
+getMonth() starts from 0, so we add 1 to get the correct month.
+padStart(2,'0') ensures numbers are always 2 digits. */
+
+const now = new Date();
+const formatted = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+console.log(formatted);
+
+คำอธิบาย โจทย์ต้องการให้เขียน JavaScript เพื่อแสดงวันและเวลาปัจจุบันในรูปแบบต่อไปนี้ YYYY-MM-DD HH:MM:SS ตัวอย่างเช่น 2025-11-24 18:05:09
+สิ่งสำคัญตามโจทย์: getMonth() เริ่มนับเดือนจาก 0–11 ดังนั้นเดือนจริงต้องเป็น getMonth() + 1 และ padStart(2, '0') ใช้เพื่อให้ตัวเลขมีความยาว 2 หลักเสมอ 
+เช่น 1 → "01" หรือ 9 → "09"
+    อธิบาย code ได้ดังนี้ เริ่มจากการสร้าง object วันที่ปัจจุบัน const now = new Date(); JavaScript มีคลาสชื่อ Date เมื่อเขียน new Date() โดยไม่ส่งค่าอะไรเข้าไป
+ระบบจะสร้าง object วัน–เวลาปัจจุบันตามเวลาของเครื่องผู้ใช้ ตัวแปร now จะมีข้อมูลครบ เช่น ปี เดือน วัน ชั่วโมง นาที วินาที ต่อมาเป็นการสร้างข้อความรูปแบบวันที่
+now.getFullYear() ดึงค่าปีในรูปแบบตัวเลข เช่น 2025 now.getMonth() + 1 เป็นการดึงค่าเดือน มีค่าได้ตั้งแต่ 0 ถึง 11 ( 0 = มกราคม 11 = ธันวาคม )
+เพื่อให้ได้เลขเดือนจริงต้อง +1 แล้วนำค่าที่ได้ไปใช้ String(now.getMonth()+1).padStart(2,'0') เพื่อแปลงตัวเลขเป็นข้อความ .padStart(2, '0') บังคับให้มีความยาวอย่างน้อย 2 ตัว
+เช่น 3 → "03" หรือ 11 → "11" String(now.getDate()).padStart(2,'0') เป็นการดึงวันที่คืนค่าตั้งแต่ 1–31 ครอบด้วย String() และ .padStart() เช่นเดียวกัน
+สุดท้าย String(now.getHours()).padStart(2,'0') String(now.getMinutes()).padStart(2,'0') String(now.getSeconds()).padStart(2,'0') เป็นการดึง
+เวลา ชั่วโมง นาที วินาที getHours() คืนค่าได้ตั้งแต่ 0–23 getMinutes() คืนค่าได้ตั้งแต่ 0–59 getSeconds() คืนค่าได้ตั้งแต่ 0–59 เช่นกัน ทุกตัวถูกแปลงเป็น string และบังคับให้ 2 หลัก
+จากนั้นประกอบเป็นข้อความเดียว โค้ดใช้ template literal (เครื่องหมาย backtick `): const formatted = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Problem5
+/*Problem 2: Check if Today is a Weekend
+Problem:
+Write a function isWeekend() that returns true if today is Saturday or Sunday.
+Explanation:
+getDay() returns a number from 0 to 6 representing Sunday to Saturday. */
+
+function isWeekend() {
+    const today = new Date();
+    const day = today.getDay();
+    return day === 0 || day === 6;
+}
+console.log(isWeekend());
+
+คำอธิบาย โจทย์ต้องการให้เขียนฟังก์ชันชื่อ isWeekend() ทำหน้าที่ตรวจสอบว่า วันนี้เป็นวันเสาร์ (Saturday) หรือ วันนี้เป็นวันอาทิตย์ (Sunday)
+แล้วให้คืนค่าเป็น true ถ้าใช่ หรือ false ถ้าไม่ใช่
+ข้อมูลสำคัญตามโจทย์: เมธอด getDay() ของ Date จะคืนค่าตัวเลขแทนวันในสัปดาห์:
+ค่า	ความหมาย
+0	Sunday (อาทิตย์)
+1	Monday (จันทร์)
+2	Tuesday (อังคาร)
+3	Wednesday (พุธ)
+4	Thursday (พฤหัสบดี)
+5	Friday (ศุกร์)
+6	Saturday (เสาร์)
+ดังนั้น
+วันอาทิตย์ = 0
+วันเสาร์ = 6
+    อธิบาย code ได้ดังนี้ เริ่มจากประกาศฟังก์ชัน isWeekend() ฟังก์ชันนี้ไม่มีพารามิเตอร์ เพราะเราต้องการตรวจสอบวันปัจจุบัน ของระบบ ทำการสร้างออบเจกต์วันที่ของวันนี้
+const today = new Date(); เมื่อสร้าง new Date() โดยไม่ส่งค่าใด ๆ ระบบจะใช้ วันและเวลาปัจจุบันของเครื่องผู้ใช้ ตัวแปร today จึงเก็บข้อมูลทั้งหมด เช่น วันที่ เดือน ปี 
+วันในสัปดาห์ เวลา ฯลฯ ต่อมาดึงวันในสัปดาห์ด้วย getDay() const day = today.getDay(); ซึ่ง .getDay() คืนค่าเป็นตัวเลข 0–6 ตามวันในสัปดาห์
+ตัวแปร day จึงเก็บค่าของวันปัจจุบัน เช่น 0 = อาทิตย์ 6 = เสาร์ สุดท้ายตรวจสอบว่าเป็นวันเสาร์หรือวันอาทิตย์ return day === 0 || day === 6; คือ เงื่อนไข day === 0 
+ตรวจว่าปัจจุบันเป็น วันอาทิตย์ ส่วนเงื่อนไข day === 6 ตรวจว่าปัจจุบันเป็น วันเสาร์ ใช้ || (OR) หมายถึง ถ้าเงื่อนไขใดเงื่อนไขหนึ่งเป็น true ฟังก์ชันจะคืนค่า true
+ถ้าเป็นวันธรรมดา (1–5) ก็จะคืนค่า false
+
+---------------------------------------------------------------------------------------------------------------------------------------------

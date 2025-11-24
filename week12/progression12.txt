@@ -1,5 +1,4 @@
 self-practice week 12
-inclass
 
 Index.html
 
